@@ -1,0 +1,20 @@
+[
+    {
+        "nik": "1234567890123456",
+        "nama": "Ahmad Subarjo",
+        "status_kip": "Aktif",
+        "bantuan_lain": ["PKH", "Bantuan Beras"]
+    },
+    {
+        "nik": "9876543210987654",
+        "nama": "Siti Nurhaliza",
+        "status_kip": "Tidak Terdaftar",
+        "bantuan_lain": ["BLT Dana Desa"]
+    },
+    {
+        "nik": "1122334455667788",
+        "nama": "Budi Santoso",
+        "status_kip": "Tidak Terdaftar",
+        "bantuan_lain": []
+    }
+]
