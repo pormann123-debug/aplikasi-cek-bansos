@@ -2,19 +2,28 @@
     {
         "nik": "1234567890123456",
         "nama": "Ahmad Subarjo",
-        "status_kip": "Aktif",
-        "bantuan_lain": ["PKH", "Bantuan Beras"]
+        "provinsi": "SUMATERA UTARA",
+        "kabupaten": "KOTA MEDAN",
+        "status_kip": "AKTIF (Penerima)",
+        "bantuan_lain": ["Program Keluarga Harapan (PKH)", "Bantuan Pangan Non Tunai (BPNT)"],
+        "periode_salur": "Tahap 4 (Okt-Des 2026)"
     },
     {
         "nik": "9876543210987654",
-        "nama": "Siti Nurhaliza",
-        "status_kip": "Tidak Terdaftar",
-        "bantuan_lain": ["BLT Dana Desa"]
+        "nama": "Dewi Pertiwi",
+        "provinsi": "JAWA BARAT",
+        "kabupaten": "KOTA BANDUNG",
+        "status_kip": "TIDAK TERDAFTAR",
+        "bantuan_lain": ["Bantuan Langsung Tunai (BLT) Dana Desa"],
+        "periode_salur": "November 2026"
     },
     {
         "nik": "1122334455667788",
         "nama": "Budi Santoso",
-        "status_kip": "Tidak Terdaftar",
-        "bantuan_lain": []
+        "provinsi": "JAWA TIMUR",
+        "kabupaten": "KOTA SURABAYA",
+        "status_kip": "TIDAK TERDAFTAR",
+        "bantuan_lain": [],
+        "periode_salur": "-"
     }
 ]

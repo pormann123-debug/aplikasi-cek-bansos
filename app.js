@@ -1,87 +1,166 @@
-const inputGambar = document.getElementById('inputGambar');
-const inputNik = document.getElementById('inputNik');
-const btnCek = document.getElementById('btnCek');
-const statusScan = document.getElementById('statusScan');
-const hasilCard = document.getElementById('hasilCard');
-const pesanError = document.getElementById('pesanError');
+const DOM = {
+    gambar: document.getElementById('inputGambar'),
+    nik: document.getElementById('inputNik'),
+    btnCek: document.getElementById('btnCek'),
+    progContainer: document.getElementById('progressContainer'),
+    progBar: document.getElementById('progressBar'),
+    progPersen: document.getElementById('progressPersen'),
+    alert: document.getElementById('pesanAlert'),
+    awal: document.getElementById('statusAwal'),
+    card: document.getElementById('hasilCard'),
+    waktu: document.getElementById('waktuCetak')
+};
 
-let dataPenduduk = [];
+let databaseBansos = [];
 
-// 1. Ambil data JSON lokal
-async function muatData() {
+// 1. Inisialisasi Database
+async function initDatabase() {
     try {
         const response = await fetch('data.json');
-        dataPenduduk = await response.json();
+        databaseBansos = await response.json();
     } catch (error) {
-        console.error("Gagal memuat data.json:", error);
+        showAlert("Koneksi database gagal. Pastikan aplikasi dijalankan via server (Vercel/Live Server).", "error");
     }
 }
-muatData();
+initDatabase();
 
-// 2. Fitur Scan KTP (Tesseract OCR)
-inputGambar.addEventListener('change', async (e) => {
+// 2. Kinerja OCR Tesseract dengan Progress Bar & Regex Lanjutan
+DOM.gambar.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    statusScan.classList.remove('hidden');
-    hasilCard.classList.add('hidden');
-    pesanError.classList.add('hidden');
+    resetUI();
+    DOM.progContainer.classList.remove('hidden');
 
     try {
-        const result = await Tesseract.recognize(file, 'ind');
-        const teksHasil = result.data.text;
-        
-        // Cari 16 digit angka menggunakan Regex
-        const regexNik = /\b\d{16}\b/;
-        const cocok = teksHasil.match(regexNik);
+        const result = await Tesseract.recognize(file, 'ind', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    const progress = Math.round(m.progress * 100);
+                    DOM.progBar.style.width = `${progress}%`;
+                    DOM.progPersen.textContent = `${progress}%`;
+                }
+            }
+        });
 
-        if (cocok) {
-            const nikDitemukan = cocok[0];
-            inputNik.value = nikDitemukan; 
-            cekData(nikDitemukan); 
+        // Preprocessing Teks: Hapus semua karakter selain angka
+        const teksKotor = result.data.text;
+        const teksBersih = teksKotor.replace(/\D/g, ''); 
+        
+        // Cari urutan 16 digit angka dari teks yang sudah dibersihkan
+        const kecocokan = teksBersih.match(/\d{16}/);
+
+        if (kecocokan) {
+            const nikDitemukan = kecocokan[0];
+            DOM.nik.value = nikDitemukan;
+            prosesPencarian(nikDitemukan);
+            showAlert("KTP berhasil dipindai!", "success");
         } else {
-            tampilkanError("Gagal membaca NIK. Pastikan foto KTP jelas, tidak silau, dan fokus.");
+            showAlert("16 Digit NIK tidak terbaca. Pastikan foto terang dan fokus, atau input manual.", "error");
         }
     } catch (error) {
-        tampilkanError("Terjadi kesalahan saat memproses gambar.");
+        showAlert("Gagal memproses gambar OCR.", "error");
     } finally {
-        statusScan.classList.add('hidden');
-        inputGambar.value = ""; 
+        setTimeout(() => {
+            DOM.progContainer.classList.add('hidden');
+            DOM.progBar.style.width = '0%';
+            DOM.gambar.value = "";
+        }, 1000);
     }
 });
 
-// 3. Fitur Cek Manual
-btnCek.addEventListener('click', () => {
-    const nik = inputNik.value.trim();
-    if (nik.length === 16) {
-        cekData(nik);
+// 3. Validasi Input Manual
+DOM.btnCek.addEventListener('click', () => {
+    const nikInput = DOM.nik.value.replace(/\D/g, '').trim(); 
+    DOM.nik.value = nikInput; 
+    
+    if (nikInput.length === 16) {
+        prosesPencarian(nikInput);
     } else {
-        tampilkanError("NIK harus tepat 16 digit angka.");
+        showAlert(`Format NIK salah. Terisi ${nikInput.length} digit (Harus 16 digit).`, "error");
     }
 });
 
-// 4. Logika Pencarian
-function cekData(nikDicari) {
-    hasilCard.classList.add('hidden');
-    pesanError.classList.add('hidden');
+// 4. Logika Pencarian & Render Data
+function prosesPencarian(nikDicari) {
+    resetUI();
+    const dataWarga = databaseBansos.find(penduduk => penduduk.nik === nikDicari);
 
-    const hasil = dataPenduduk.find(orang => orang.nik === nikDicari);
+    if (dataWarga) {
+        // Render ke Antarmuka
+        document.getElementById('outNama').textContent = dataWarga.nama;
+        document.getElementById('outNik').textContent = dataWarga.nik;
+        document.getElementById('outProv').textContent = dataWarga.provinsi;
+        document.getElementById('outKab').textContent = dataWarga.kabupaten;
+        document.getElementById('outPeriode').textContent = dataWarga.periode_salur;
 
-    if (hasil) {
-        document.getElementById('outNama').textContent = hasil.nama;
-        document.getElementById('outNik').textContent = hasil.nik;
-        document.getElementById('outKip').textContent = hasil.status_kip;
-        
-        document.getElementById('outBansos').textContent = 
-            hasil.bantuan_lain.length > 0 ? hasil.bantuan_lain.join(', ') : "Tidak ada";
+        // Styling Status KIP
+        const kipEl = document.getElementById('outKip');
+        kipEl.textContent = dataWarga.status_kip;
+        if (dataWarga.status_kip.includes("AKTIF")) {
+            kipEl.className = "inline-block px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-700";
+        } else {
+            kipEl.className = "inline-block px-3 py-1 rounded-full text-sm font-bold bg-red-100 text-red-700";
+        }
 
-        hasilCard.classList.remove('hidden');
+        // Render List Bansos
+        const bansosList = document.getElementById('outBansos');
+        bansosList.innerHTML = "";
+        if (dataWarga.bantuan_lain.length > 0) {
+            dataWarga.bantuan_lain.forEach(bantuan => {
+                const li = document.createElement('li');
+                li.textContent = bantuan;
+                bansosList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.className = "list-none text-slate-500 italic";
+            li.textContent = "Tidak ada riwayat penerimaan bantuan lain.";
+            bansosList.appendChild(li);
+        }
+
+        // Waktu Cetak (Timestamp real-time)
+        const date = new Date();
+        DOM.waktu.textContent = `${date.toLocaleDateString('id-ID')} ${date.toLocaleTimeString('id-ID')}`;
+
+        // Simpan ke Local Storage
+        localStorage.setItem('cekBansosTerakhir', nikDicari);
+
+        // Tampilkan Card
+        DOM.awal.classList.add('hidden');
+        DOM.card.classList.remove('hidden');
     } else {
-        tampilkanError("Data NIK tidak ditemukan dalam sistem.");
+        showAlert(`Data tidak ditemukan untuk NIK: ${nikDicari}`, "error");
     }
 }
 
-function tampilkanError(pesan) {
-    pesanError.textContent = pesan;
-    pesanError.classList.remove('hidden');
+// 5. Utilitas Alert & UI
+function showAlert(pesan, tipe) {
+    DOM.alert.textContent = pesan;
+    DOM.alert.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+    
+    if (tipe === "error") {
+        DOM.alert.classList.add('bg-red-100', 'text-red-700');
+    } else if (tipe === "success") {
+        DOM.alert.classList.add('bg-green-100', 'text-green-700');
+    }
+    
+    // Sembunyikan otomatis setelah 5 detik
+    setTimeout(() => {
+        DOM.alert.classList.add('hidden');
+    }, 5000);
 }
+
+function resetUI() {
+    DOM.alert.classList.add('hidden');
+    DOM.card.classList.add('hidden');
+    DOM.awal.classList.remove('hidden');
+}
+
+// 6. Cek Riwayat di LocalStorage saat dimuat (Opsional)
+window.addEventListener('DOMContentLoaded', () => {
+    const nikTerakhir = localStorage.getItem('cekBansosTerakhir');
+    if (nikTerakhir) {
+        DOM.nik.value = nikTerakhir;
+    }
+});
